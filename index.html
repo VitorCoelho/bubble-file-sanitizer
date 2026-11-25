@@ -1,0 +1,338 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<!-- Hard guarantee: this page cannot talk to any server. No fetch, no XHR, no
+     beacons, no external scripts, styles, fonts or images. Open DevTools →
+     Network while you use it: the only requests are the page files themselves. -->
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'unsafe-inline'; style-src 'unsafe-inline'; img-src data:; connect-src 'none'; form-action 'none'; base-uri 'none'">
+<meta name="referrer" content="no-referrer">
+<title>Bubble Export Sanitizer</title>
+<style>
+:root{
+  --bg:#f6f6f1;--surface:#ffffff;--surface-2:#eeeee6;--ink:#141412;--muted:#6a6a60;--line:rgba(20,20,18,.12);
+  --accent:#2b6cf0;--accent-ink:#fff;--good:#1a9a62;--warn:#c98a00;--danger:#d9442b;
+  --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;--sans:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  --r:14px;--shadow:0 16px 40px -28px rgba(0,0,0,.45);
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme=light]){
+  --bg:#0f0f0e;--surface:#191917;--surface-2:#121211;--ink:#f1f0e8;--muted:#9c9a8e;--line:rgba(255,255,255,.12);
+  --accent:#7aa5ff;--accent-ink:#0b1430;--good:#3fc48f;--warn:#e7b24c;--danger:#f07a62;color-scheme:dark}}
+:root[data-theme=dark]{
+  --bg:#0f0f0e;--surface:#191917;--surface-2:#121211;--ink:#f1f0e8;--muted:#9c9a8e;--line:rgba(255,255,255,.12);
+  --accent:#7aa5ff;--accent-ink:#0b1430;--good:#3fc48f;--warn:#e7b24c;--danger:#f07a62;color-scheme:dark}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);line-height:1.5}
+a{color:var(--accent)}
+.wrap{max-width:1040px;margin:0 auto;padding:28px 16px 60px}
+header{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:20px}
+header h1{font-size:1.45rem;margin:0;letter-spacing:-.01em}
+header p{margin:0;color:var(--muted)}
+.spacer{flex:1}
+.pill{display:inline-flex;align-items:center;gap:.4rem;border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:.3rem .7rem;font-size:.76rem;font-weight:600;color:var(--muted)}
+.pill .d{width:8px;height:8px;border-radius:50%;background:var(--good)}
+.tsw{display:inline-flex;gap:2px;border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:3px}
+.tsw button{border:none;background:none;color:var(--muted);font-weight:600;font-size:.76rem;padding:.26rem .55rem;border-radius:999px;cursor:pointer;font-family:var(--sans)}
+.tsw button.on{background:var(--accent);color:var(--accent-ink)}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--shadow);padding:18px;margin-bottom:16px}
+.drop{display:block;border:2px dashed var(--line);border-radius:var(--r);padding:34px 18px;text-align:center;cursor:pointer;transition:border-color .2s,background .2s;background:var(--surface-2)}
+.drop.over{border-color:var(--accent);background:color-mix(in srgb,var(--accent) 8%,var(--surface-2))}
+.drop b{display:block;font-size:1.05rem}
+.drop span{color:var(--muted);font-size:.9rem}
+.drop input{display:none}
+.opts{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:8px 18px;margin-top:14px}
+.opts label{display:flex;gap:.5rem;align-items:flex-start;font-size:.88rem;cursor:pointer}
+.opts label small{display:block;color:var(--muted);font-size:.76rem}
+.opts input[type=checkbox]{margin-top:.3rem;accent-color:var(--accent)}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:14px}
+.btn{font-family:var(--sans);font-weight:700;border:none;border-radius:10px;background:var(--accent);color:var(--accent-ink);padding:.62rem 1.05rem;cursor:pointer;font-size:.9rem}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.btn.ghost{background:var(--surface);color:var(--ink);border:1px solid var(--line)}
+.btn.good{background:var(--good);color:#fff}
+input[type=text]{font-family:var(--sans);font-size:.88rem;border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:9px;padding:.5rem .65rem;min-width:260px}
+.status{font-size:.86rem;color:var(--muted)}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-top:4px}
+.kpi{background:var(--surface-2);border:1px solid var(--line);border-radius:12px;padding:10px 12px}
+.kpi .k{font-size:.72rem;color:var(--muted);font-weight:600}
+.kpi .v{font-family:var(--mono);font-weight:700;font-size:1.3rem}
+.kpi.good .v{color:var(--good)} .kpi.warn .v{color:var(--warn)} .kpi.bad .v{color:var(--danger)}
+h2{font-size:1.05rem;margin:0 0 8px}
+.sub{color:var(--muted);font-size:.84rem;margin:0 0 10px}
+table{width:100%;border-collapse:collapse;font-size:.8rem}
+th,td{text-align:left;padding:.42rem .5rem;border-bottom:1px solid var(--line);vertical-align:top}
+th{color:var(--muted);font-weight:600;font-size:.72rem;letter-spacing:.04em;text-transform:uppercase;position:sticky;top:0;background:var(--surface)}
+td.path,td.prev{font-family:var(--mono);font-size:.74rem;word-break:break-all}
+.tag{display:inline-block;font-family:var(--mono);font-size:.68rem;border:1px solid var(--line);border-radius:999px;padding:.08rem .45rem;background:var(--surface-2);white-space:nowrap}
+.tbl{max-height:420px;overflow:auto;border:1px solid var(--line);border-radius:10px}
+.counts{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px}
+.counts .tag b{color:var(--ink)}
+.warnbox{border-left:3px solid var(--warn);background:color-mix(in srgb,var(--warn) 10%,transparent);padding:.6rem .8rem;border-radius:8px;font-size:.84rem;margin-top:8px}
+.okbox{border-left:3px solid var(--good);background:color-mix(in srgb,var(--good) 10%,transparent);padding:.6rem .8rem;border-radius:8px;font-size:.84rem}
+.badbox{border-left:3px solid var(--danger);background:color-mix(in srgb,var(--danger) 10%,transparent);padding:.6rem .8rem;border-radius:8px;font-size:.84rem}
+details{margin-top:10px}
+summary{cursor:pointer;font-weight:600;font-size:.9rem}
+code{font-family:var(--mono);font-size:.82em;background:var(--surface-2);padding:.05rem .3rem;border-radius:4px}
+footer{color:var(--muted);font-size:.8rem;margin-top:30px}
+[hidden]{display:none!important}
+.filter{margin:0 0 8px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>Bubble Export Sanitizer</h1>
+      <p>Strip API keys, credentials and personal data from a <code>.bubble</code> app export — in your browser, offline.</p>
+    </div>
+    <div class="spacer"></div>
+    <span class="pill" title="Content-Security-Policy connect-src 'none' — this page cannot make network requests."><span class="d"></span>No network · nothing stored</span>
+    <div class="tsw" id="tsw"><button data-set="light" aria-label="Light">☀</button><button data-set="dark" aria-label="Dark">☾</button></div>
+  </header>
+
+  <div class="card">
+    <details>
+      <summary>Why? Share an export instead of connecting an AI to your app</summary>
+      <ul style="font-size:.88rem;color:var(--muted)">
+        <li><b>Faster and cheaper on big apps.</b> Through the Bubble MCP, an AI reads your app one request at a time: list the pages, open a page, open each workflow, open each data type… On a large app that is hundreds of calls, and every answer is added to the conversation, so you pay in time and in tokens. A <code>.bubble</code> export is the whole app in one file: the AI (or a script it writes) can search it in seconds and only read the parts it needs.</li>
+        <li><b>Read-only by design.</b> A file cannot change your app. No editor access, no API keys and no connection to your account are handed to the AI or to the person helping you.</li>
+        <li><b>A fixed snapshot.</b> Everyone works on the same version: you can attach it to an issue, send it to a contractor or another AI, and compare it with a later export.</li>
+        <li><b>Safe to share once sanitized.</b> A raw export carries every API key, password and test record in the app. This page removes them first, so the file can go to people and AIs you don't fully control.</li>
+      </ul>
+    </details>
+    <details>
+      <summary>How to verify this page is safe</summary>
+      <ol style="font-size:.88rem;color:var(--muted)">
+        <li>Open your browser's DevTools → <b>Network</b> tab, then load and sanitize a file. The only requests you will see are this HTML and its script, loaded before you picked a file. Nothing is sent afterwards.</li>
+        <li>The page ships a <code>Content-Security-Policy</code> with <code>connect-src 'none'</code> and <code>default-src 'none'</code>: the browser itself refuses any network call, even if the code tried.</li>
+        <li>Switch your machine to airplane mode and repeat — it works exactly the same.</li>
+        <li>Nothing is written to <code>localStorage</code>, cookies or IndexedDB. Click <b>Clear memory</b> or close the tab and the file is gone.</li>
+        <li>Read the source: it is one small file, <code>src/sanitizer.js</code>, plus this page. No build step, no dependencies.</li>
+      </ol>
+    </details>
+    <details>
+      <summary>What it does and does not do</summary>
+      <ul style="font-size:.88rem;color:var(--muted)">
+        <li>Only string values are rewritten. Keys, numbers, booleans, nulls, ordering and structure stay identical, so the file keeps its shape and internal references.</li>
+        <li>Bubble ids (<code>1700000000000x100000000000000001</code>, <code>bTGYf</code>, plugin element ids, API call ids), dates and colors are protected and never redacted.</li>
+        <li>Each secret is replaced by <code>[REDACTED:rule:xxxxxxxxxx]</code>. The suffix is a salted, non-reversible hash so the same secret maps to the same placeholder within one run and cross-references still line up. The salt is random per run, so placeholders can't be compared between runs or files.</li>
+        <li>A second pass runs over the output and must find nothing. If it does, the result is flagged and you should not publish the file.</li>
+        <li>It cannot know your business: names of people inside text, addresses, internal URLs or anything that is secret only to you will not be detected. Read the review list and skim the output before publishing.</li>
+      </ul>
+    </details>
+  </div>
+
+  <div class="card">
+    <label class="drop" id="drop">
+      <input type="file" id="file" accept=".bubble,.json,application/json">
+      <b>Drop your <code>.bubble</code> file here, or click to choose</b>
+      <span>The file is read into memory only. It never leaves this tab, and nothing is written to disk or storage until you click Download.</span>
+    </label>
+
+    <div class="opts" id="opts">
+      <label><input type="checkbox" data-opt="keyNames" checked><div>Secret-looking keys<small>api_key, secret, token, password, private_key, connection_string, auth_token…</small></div></label>
+      <label><input type="checkbox" data-opt="formats" checked><div>Known secret formats<small>Stripe sk_/rk_/whsec_, AWS, Google, Twilio, Mailgun, SendGrid, Klaviyo, Slack, GitHub, OpenAI, JWT, Basic/Bearer, PEM keys, DB URLs</small></div></label>
+      <label><input type="checkbox" data-opt="privateFlags" checked><div>API Connector private values<small>Any <code>{"private": true}</code> header or parameter</small></div></label>
+      <label><input type="checkbox" data-opt="publishable" checked><div>Stripe publishable keys<small>pk_live / pk_test (public, but they identify your account)</small></div></label>
+      <label><input type="checkbox" data-opt="sids" checked><div>Twilio SIDs<small>AC…, SK…, VA…, MG… (identify the account)</small></div></label>
+      <label><input type="checkbox" data-opt="emails" checked><div>Email addresses<small>→ user1@example.com, consistent per address</small></div></label>
+      <label><input type="checkbox" data-opt="phones" checked><div>Phone numbers<small>→ +10000000001, consistent per number</small></div></label>
+      <label><input type="checkbox" data-opt="ips" checked><div>IPv4 addresses<small>→ 0.0.0.1</small></div></label>
+      <label><input type="checkbox" data-opt="secureSettings" checked><div>Server-side settings<small>Everything under <code>settings.secure</code>: plugin keys, Data API tokens, JWKs, DB connection strings</small></div></label>
+      <label><input type="checkbox" data-opt="pluginKeys" checked><div>Plugin settings (client side)<small>Public plugin keys / app ids in <code>settings.client_safe</code></small></div></label>
+      <label><input type="checkbox" data-opt="sampleValues" checked><div>API Connector sample responses<small>Initialization data (real customer records) → "string value"</small></div></label>
+      <label><input type="checkbox" data-opt="stripeIds" checked><div>Stripe customer-level ids<small>cus_, sub_, pm_, in_, ch_, pi_… (prod_/price_ kept)</small></div></label>
+      <label><input type="checkbox" data-opt="sqlRows" checked><div>SQL literal rows<small><code>INSERT … VALUES (…)</code> data in SQL Connector queries</small></div></label>
+      <label><input type="checkbox" data-opt="comments" checked><div>Editor comments<small>Notes on elements/types often name people</small></div></label>
+      <label><input type="checkbox" data-opt="paramValues" checked><div>API Connector test values<small>Values typed into non-private params when initializing (phones, customer ids)</small></div></label>
+      <label><input type="checkbox" data-opt="trackingIds" checked><div>Analytics / pixel ids<small>GTM, GA4, Meta pixel, Clarity, Impact, Hyros in header scripts</small></div></label>
+      <label><input type="checkbox" data-opt="entropyScan" checked><div>Entropy scan (review list)<small>Lists random-looking strings the rules didn't catch</small></div></label>
+      <label><input type="checkbox" data-opt="redactEntropy"><div>…and redact those too<small>Aggressive. May hit non-secret values; check the report</small></div></label>
+    </div>
+    <div class="row">
+      <input type="text" id="customWords" placeholder="Also redact these words (comma-separated): names, hostnames…">
+      <input type="text" id="keepDomains" placeholder="Keep emails on these domains (comma-separated)">
+      <button class="btn" id="run" disabled>Sanitize</button>
+      <span class="status" id="status">No file loaded.</span>
+    </div>
+  </div>
+
+  <div class="card" id="results" hidden>
+    <h2>Result</h2>
+    <div class="kpis">
+      <div class="kpi"><div class="k">Input</div><div class="v" id="kIn">–</div></div>
+      <div class="kpi"><div class="k">Redactions</div><div class="v" id="kRed">–</div></div>
+      <div class="kpi" id="kVerifyBox"><div class="k">Second-pass check</div><div class="v" id="kVerify">–</div></div>
+      <div class="kpi warn"><div class="k">For manual review</div><div class="v" id="kRev">–</div></div>
+      <div class="kpi"><div class="k">Time</div><div class="v" id="kTime">–</div></div>
+    </div>
+    <div class="row">
+      <button class="btn good" id="download">Download sanitized file</button>
+      <button class="btn ghost" id="copyReport">Copy audit report (JSON, no secrets)</button>
+      <button class="btn ghost" id="reset">Clear memory</button>
+      <span class="status" id="outname"></span>
+    </div>
+    <div id="verifyMsg" style="margin-top:12px"></div>
+  </div>
+
+  <div class="card" id="reportCard" hidden>
+    <h2>What was changed</h2>
+    <p class="sub">Every rewritten value, with its JSON path and the rule that fired. Previews show only the first/last two characters and the length — the original value is not kept anywhere.</p>
+    <div class="counts" id="counts"></div>
+    <input type="text" class="filter" id="filter" placeholder="Filter by path, key or rule…">
+    <div class="tbl"><table><thead><tr><th>#</th><th>Path</th><th>Key</th><th>Rule</th><th>Was</th><th>Now</th></tr></thead><tbody id="rows"></tbody></table></div>
+    <div class="warnbox" id="truncNote" hidden></div>
+  </div>
+
+  <div class="card" id="reviewCard" hidden>
+    <h2>Review manually</h2>
+    <p class="sub">Random-looking strings that no rule matched. They were <b>left as-is</b>. If any is a secret, tick “…and redact those too” and run again, or edit the output by hand.</p>
+    <div class="tbl"><table><thead><tr><th>#</th><th>Path</th><th>Key</th><th>Preview</th></tr></thead><tbody id="revRows"></tbody></table></div>
+  </div>
+
+  <footer>Bubble Export Sanitizer · MIT licensed · runs entirely client-side. Not affiliated with Bubble.</footer>
+</div>
+
+<script src="src/sanitizer.js"></script>
+<script>
+(function(){
+  'use strict';
+  var S = window.BubbleSanitizer;
+  var $ = function(id){ return document.getElementById(id); };
+  var fileText = null, fileName = '', result = null, outText = '';
+
+  // theme
+  var root = document.documentElement, tsw = $('tsw');
+  function eff(){ var a=root.getAttribute('data-theme'); return a || (matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light'); }
+  function mark(){ tsw.querySelectorAll('button').forEach(function(b){ b.classList.toggle('on', b.dataset.set===eff()); }); }
+  tsw.querySelectorAll('button').forEach(function(b){ b.onclick=function(){ root.setAttribute('data-theme', b.dataset.set); mark(); }; });
+  mark();
+
+  function fmtBytes(n){ if(n<1024) return n+' B'; if(n<1048576) return (n/1024).toFixed(1)+' KB'; return (n/1048576).toFixed(1)+' MB'; }
+  function esc(s){ return String(s).replace(/[&<>"']/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
+  function setStatus(t){ $('status').textContent = t; }
+
+  // file loading
+  var drop = $('drop'), fileInput = $('file');
+  ['dragenter','dragover'].forEach(function(ev){ drop.addEventListener(ev, function(e){ e.preventDefault(); drop.classList.add('over'); }); });
+  ['dragleave','drop'].forEach(function(ev){ drop.addEventListener(ev, function(e){ e.preventDefault(); drop.classList.remove('over'); }); });
+  drop.addEventListener('drop', function(e){ var f = e.dataTransfer.files && e.dataTransfer.files[0]; if(f) load(f); });
+  fileInput.addEventListener('change', function(){ if(fileInput.files[0]) load(fileInput.files[0]); });
+
+  function load(f){
+    clearResult();
+    fileName = f.name; fileText = null; $('run').disabled = true;
+    setStatus('Reading ' + f.name + ' (' + fmtBytes(f.size) + ')…');
+    var r = new FileReader();
+    r.onerror = function(){ setStatus('Could not read the file.'); };
+    r.onload = function(){
+      var t = r.result;
+      if (t.charCodeAt(0) === 0x50 && t.charCodeAt(1) === 0x4B) { setStatus('This looks like a ZIP archive, not a JSON export. Unzip it first.'); return; }
+      try { JSON.parse(t.charCodeAt(0) === 0xFEFF ? t.slice(1) : t); }
+      catch(e){ setStatus('Not valid JSON: ' + e.message); return; }
+      fileText = t; $('run').disabled = false;
+      setStatus('Loaded ' + f.name + ' (' + fmtBytes(f.size) + '). Ready.');
+    };
+    r.readAsText(f);
+  }
+
+  function options(){
+    var o = {};
+    document.querySelectorAll('#opts input[type=checkbox]').forEach(function(c){ o[c.dataset.opt] = c.checked; });
+    o.keepEmailDomains = $('keepDomains').value.split(',').map(function(s){ return s.trim(); }).filter(Boolean);
+    o.customWords = $('customWords').value.split(',').map(function(s){ return s.trim(); }).filter(Boolean);
+    return o;
+  }
+
+  $('run').onclick = function(){
+    if(!fileText) return;
+    $('run').disabled = true; setStatus('Sanitizing…');
+    setTimeout(function(){
+      var t0 = performance.now();
+      try {
+        result = S.sanitize(fileText, options());
+        outText = S.stringify(result.data, fileText);
+        var v = S.verify(outText, options());
+        var ms = Math.round(performance.now() - t0);
+        render(v, ms);
+        setStatus('Done.');
+      } catch(e) {
+        setStatus('Failed: ' + e.message);
+      }
+      $('run').disabled = false;
+    }, 30);
+  };
+
+  function render(v, ms){
+    $('results').hidden = false;
+    $('kIn').textContent = fmtBytes(fileText.length);
+    $('kRed').textContent = result.total.toLocaleString();
+    $('kRev').textContent = result.review.length.toLocaleString();
+    $('kTime').textContent = ms + ' ms';
+    var vb = $('kVerifyBox'); vb.classList.remove('good','bad');
+    if (v.clean) { vb.classList.add('good'); $('kVerify').textContent = 'clean'; $('verifyMsg').innerHTML = '<div class="okbox">Second pass over the output found nothing left to redact.</div>'; }
+    else { vb.classList.add('bad'); $('kVerify').textContent = v.findings.length + ' left'; $('verifyMsg').innerHTML = '<div class="badbox"><b>Do not publish this file.</b> A second pass still finds ' + v.findings.length + ' value(s). First one: <code>' + esc(v.findings[0].path) + '</code> (' + esc(v.findings[0].rule) + '). Please open an issue with the path (never the value).</div>'; }
+    $('download').disabled = !v.clean;
+    var base = fileName.replace(/\.(bubble|json)$/i, '');
+    $('outname').textContent = '→ ' + base + '.sanitized' + (/\.json$/i.test(fileName) ? '.json' : '.bubble');
+
+    // counts
+    var c = $('counts'); c.innerHTML = '';
+    Object.keys(result.counts).sort(function(a,b){ return result.counts[b]-result.counts[a]; }).forEach(function(k){
+      c.insertAdjacentHTML('beforeend', '<span class="tag"><b>' + result.counts[k].toLocaleString() + '</b> ' + esc(k) + '</span>');
+    });
+    $('reportCard').hidden = result.total === 0;
+    renderRows('');
+    var tn = $('truncNote');
+    if (result.total > result.report.length) { tn.hidden = false; tn.textContent = 'Showing the first ' + result.report.length.toLocaleString() + ' of ' + result.total.toLocaleString() + ' redactions. The downloaded file contains all of them.'; }
+    else tn.hidden = true;
+
+    $('reviewCard').hidden = result.review.length === 0;
+    $('revRows').innerHTML = result.review.slice(0, 2000).map(function(r, i){
+      return '<tr><td>' + (i+1) + '</td><td class="path">' + esc(r.path) + '</td><td>' + esc(r.key) + '</td><td class="prev">' + esc(r.preview) + '</td></tr>';
+    }).join('');
+  }
+
+  function renderRows(q){
+    q = q.toLowerCase();
+    var rows = result.report.filter(function(r){ return !q || (r.path + ' ' + r.key + ' ' + r.rule).toLowerCase().indexOf(q) > -1; });
+    $('rows').innerHTML = rows.slice(0, 2000).map(function(r, i){
+      return '<tr><td>' + (i+1) + '</td><td class="path">' + esc(r.path) + '</td><td>' + esc(r.key) + '</td><td><span class="tag">' + esc(r.rule) + '</span></td><td class="prev">' + esc(r.preview) + '</td><td class="prev">' + esc(r.replacement) + '</td></tr>';
+    }).join('') || '<tr><td colspan="6" style="color:var(--muted)">No matches.</td></tr>';
+  }
+  $('filter').addEventListener('input', function(){ if(result) renderRows($('filter').value); });
+
+  $('download').onclick = function(){
+    if(!outText) return;
+    var base = fileName.replace(/\.(bubble|json)$/i, '');
+    var name = base + '.sanitized' + (/\.json$/i.test(fileName) ? '.json' : '.bubble');
+    var blob = new Blob([outText], { type: 'application/json' });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a'); a.href = url; a.download = name; document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(function(){ URL.revokeObjectURL(url); }, 2000);
+  };
+
+  $('copyReport').onclick = function(){
+    if(!result) return;
+    var opt = Object.assign({}, result.options); delete opt.customWords; delete opt.keepEmailDomains;
+    var payload = { file: fileName, tool: 'bubble-sanitizer ' + S.version, total: result.total, counts: result.counts, options: opt, redactions: result.report, review: result.review };
+    var txt = JSON.stringify(payload, null, 2);
+    var done = function(){ setStatus('Audit report copied to clipboard.'); };
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(txt).then(done, function(){ fallbackCopy(txt); done(); });
+    else { fallbackCopy(txt); done(); }
+  };
+  function fallbackCopy(t){ var ta=document.createElement('textarea'); ta.value=t; document.body.appendChild(ta); ta.select(); try{ document.execCommand('copy'); }catch(e){} ta.remove(); }
+
+  function clearResult(){
+    result = null; outText = '';
+    $('results').hidden = true; $('reportCard').hidden = true; $('reviewCard').hidden = true;
+    $('rows').innerHTML = ''; $('revRows').innerHTML = ''; $('verifyMsg').innerHTML = '';
+  }
+  $('reset').onclick = function(){
+    clearResult(); fileText = null; fileName = ''; fileInput.value = ''; $('run').disabled = true;
+    setStatus('Memory cleared. No file loaded.');
+  };
+})();
+</script>
+</body>
+</html>

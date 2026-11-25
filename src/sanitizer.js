@@ -27,7 +27,7 @@
   // Protected values: never redact these, whatever any rule says.
   // ---------------------------------------------------------------------------
   const BUBBLE_ID = /^\d{13}x\d{12,24}$/;                 // thing / element ids
-  const BUBBLE_SHORT_ID = /^[a-z]?[A-Z]{2,3}[A-Za-z]{0,3}[0-9]?$/; // editor ids: "bTGYf", "AAa", "bTInH0", "cRb"
+  const BUBBLE_SHORT_ID = /^[a-z]?[A-Z]{2,3}[A-Za-z]{0,3}[0-9]?$/; // editor ids: "bQZPk", "AAa", "bQRsT0", "cXa"
   const BUBBLE_TYPED_ID = /^(?:[A-Za-z0-9_]{1,40}-)?\d{13}x\d{12,24}(?:[.\-_]\d{13}x\d{12,24})*$/; // plugin-element & api-call ids
   const PLUGIN_KEY = /^\d{13}x\d{12,24}-[A-Za-z]{2,8}$/;  // "1600000000000x100000000000000003-AAC"
   const ISO_DATE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:?\d{2})?$/;
@@ -90,13 +90,17 @@
     { id: 'kv-secret-in-text', re: /\b((?:api[_\-]?key|apikey|secret|token|password|access[_\-]?token|auth[_\-]?token)\s*[:=]\s*["']?)([A-Za-z0-9_\-+/=.]{12,})/gi, group: 2 },
     // Analytics / pixel ids embedded in header scripts. Public, but they identify the account.
     { id: 'tracking-id',       re: /\b(?:GTM-[A-Z0-9]{6,10}|G-(?=[A-Z0-9]*\d)[A-Z0-9]{8,12}|UA-\d{4,10}-\d{1,3}|AW-\d{8,12}|DC-\d{6,12})\b/g, optional: 'trackingIds' },
-    { id: 'tracking-id',       re: /(fbq\(\s*['"]init['"]\s*,\s*['"])(\d{12,18})/g, group: 2, optional: 'trackingIds' },
+    { id: 'tracking-id',       re: /(fbq\(\s*['"](?:init|trackSingle|trackSingleCustom)['"]\s*,\s*['"])(\d{12,18})/g, group: 2, optional: 'trackingIds' },
+    { id: 'tracking-id',       re: /(facebook\.com\/tr\/?\?id=)(\d{12,18})/g, group: 2, optional: 'trackingIds' },
     { id: 'tracking-id',       re: /(["']clarity["']\s*,\s*["']script["']\s*,\s*["'])([a-z0-9]{6,16})/g, group: 2, optional: 'trackingIds' },
-    { id: 'tracking-id',       re: /\bA\d{7}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12,13}\b/g, optional: 'trackingIds' },
     { id: 'tracking-id',       re: /(<meta\s+name=["'][\w\-]*verification["']\s+content=["'])([^"']{6,})/gi, group: 2, optional: 'trackingIds' },
-    { id: 'tracking-id',       re: /\b([a-z0-9]{4,})(\.t\.hyros\.com)\b/g, group: 1, optional: 'trackingIds' },
     { id: 'tracking-id',       re: /([?&](?:ph|pixel_id|pid|account|aid|cid|client_id)=)([A-Za-z0-9_\-]{10,})/gi, group: 2, optional: 'trackingIds' },
     { id: 'stripe-connect-id', re: /\bca_[0-9A-Za-z]{20,}\b/g, optional: 'stripeIds' },
+    // Stripe Payment Links / customer portal / hosted invoice codes: they open the account's own checkout pages.
+    { id: 'stripe-link',       re: /((?:buy|billing|checkout|donate|invoice|pay)\.stripe\.com\/(?:p\/login\/|b\/|c\/pay\/|i\/)?)((?:test_)?[A-Za-z0-9]{10,})/g, group: 2, optional: 'stripeIds' },
+    { id: 'stripe-link',       re: /^test_[A-Za-z0-9]{14,40}$/g, optional: 'stripeIds' },
+    // Authenticator (TOTP) secrets: a whole value of 16+ base32 characters with at least one digit.
+    { id: 'totp-secret',       re: /^(?=[A-Z2-7]*[2-7])(?=[A-Z2-7]*[A-Z])[A-Z2-7]{16,64}={0,6}$/g },
     { id: 'url-query-secret',  re: /([?&](?:api[_\-]?key|apikey|key|token|secret|signature|sig|auth|password|access_token|client_secret|private_key)=)([^&#\s"']+)/gi, group: 2 }
   ];
 
@@ -299,6 +303,13 @@
           return r;
         });
       }
+      if (opts.phones && /^\+?\d{11,15}$/.test(out) && !/^1[4-9]\d{11}$/.test(out) && !/change|version|count|time|date|stamp|size|amount|price/i.test(String(key))) {
+        // A whole value of 11-15 bare digits is a phone number in E.164 without the "+" (e.g. a Twilio "From").
+        // 13-digit values starting 14-19 are millisecond timestamps and are kept.
+        const r = piiPlaceholder('phones', out);
+        record(path, key, 'phone', out, r);
+        return r;
+      }
       if (opts.phones) {
         PHONE_RE.lastIndex = 0;
         out = out.replace(PHONE_RE, function (m) {
@@ -365,7 +376,8 @@
           const p = isArr ? path + '[' + k + ']' : path + '.' + k;
           if (v && typeof v === 'object') { st.push({ node: v, path: p }); continue; }
           if (typeof v !== 'string' || v === '') continue;
-          if (isProtectedValue(v) || TRIVIAL_RE.test(v)) continue;
+          if (isProtectedValue(v)) continue;
+          if (TRIVIAL_RE.test(v) && !/user|login|pass|secret|token|key|account|campaign|tracker|client/i.test(String(k))) continue;
           if (String(k) === 'key' || String(k) === 'name' || String(k) === 'url' || String(k) === 'method') continue; // labels, not values
           if (URL_ONLY.test(v)) continue;
           node[k] = redactWhole(v, 'secure-settings', p, String(k));
@@ -464,7 +476,18 @@
             changed++;
             return head + "(/* rows removed by sanitizer */)" + tail;
           });
-          // params carry a test_value per placeholder (serialized as JSON or as a Python-style repr)
+          // params carry a test_value per placeholder: an array of objects, or that array serialized
+          // as JSON or as a Python-style repr.
+          if (item.params && typeof item.params === 'object') {
+            let c3 = 0;
+            for (const prm of Object.values(item.params)) {
+              if (!prm || typeof prm !== 'object' || typeof prm.test_value !== 'string') continue;
+              const val = prm.test_value;
+              if (val === '' || val === 'string value' || TRIVIAL_RE.test(val) || isProtectedValue(val)) continue;
+              prm.test_value = 'string value'; c3++;
+            }
+            if (c3) { changed += c3; if (report.length < opts.maxReportEntries) report.push({ path: '$.settings.client_safe.dbconnector_queries.' + id + '.params', key: 'test_value', rule: 'sql-rows', preview: c3 + ' test value(s)', replacement: 'string value' }); }
+          }
           if (typeof item.params === 'string') {
             let c2 = 0;
             const np = item.params.replace(/(["']test_value["']\s*:\s*)(["'])((?:(?!\2).)*)\2/g, function (m, head, q, val) {

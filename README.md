@@ -17,7 +17,7 @@ Drop the `.bubble` file, pick the rules, click **Sanitize**, read the report, do
 - **No storage.** Nothing is written to localStorage, cookies, IndexedDB or disk until you click Download. "Clear memory" drops the file.
 - **No dependencies, no build step.** One engine file (`src/sanitizer.js`) and one page. Read them.
 - **Structure preserved.** Only string values are rewritten. Keys, numbers, booleans, nulls, order and nesting are untouched, so the file keeps its shape and internal references.
-- **Bubble ids are protected.** Thing/element ids (`1700000000000x100000000000000001`), editor ids (`bTGYf`), plugin element and API call ids, dates and colors are never redacted, whatever rule fires.
+- **Bubble ids are protected.** Thing/element ids (`1700000000000x100000000000000001`), editor ids (`bQZPk`), plugin element and API call ids, dates and colors are never redacted, whatever rule fires.
 - **Second-pass check.** The output is scanned again and must come back clean, or the download is disabled.
 - **Audit report without secrets.** Every change is listed with JSON path, key and rule. Previews show two characters on each end plus the length; the original value is kept nowhere.
 
@@ -35,7 +35,7 @@ Drop the `.bubble` file, pick the rules, click **Sanitize**, read the report, do
 | `sql-rows` | `INSERT … VALUES (…)` literal rows inside SQL Database Connector queries (pasted dumps). Parameterised `VALUES (?,?,?)` are untouched. |
 | `comment` | Editor comments on elements, types and workflows → `[comment removed]`. |
 | `param-value` | API Connector non-private parameters keep the test value typed at initialization (a phone number, a `cus_` id, a name). Config-like values (`usd`, `always_invoice`, `2`, return URLs, `prod_`/`price_` ids) are kept. |
-| `tracking-id` | GTM / GA4 / UA / Ads ids, Meta pixel id, Clarity, Impact and Hyros ids inside the custom header scripts. Public, but they identify the account. |
+| `tracking-id` | GTM / GA4 / UA / Ads ids, Meta pixel and Clarity ids, pixel ids in script URLs inside the custom header scripts. Public, but they identify the account. |
 | `custom-word` | Words you type in "Also redact these words" — people's names, internal hostnames — whole-word, case-insensitive, everywhere. |
 | `email` / `phone` / `ip` | Replaced by `user1@example.com`, `+10000000001`, `0.0.0.1` — the same original always maps to the same placeholder in a run. You can keep emails on chosen domains. |
 | `high-entropy` (opt-in) | Random-looking strings nothing else matched. By default they are only **listed for review**, because this rule can hit legitimate values. |

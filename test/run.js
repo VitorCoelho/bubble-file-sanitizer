@@ -54,17 +54,17 @@ const SECRETS = {
 
 const KEEP = {
   thingId: '1700000000000x100000000000000001',
-  elemId: 'bTGYf',
+  elemId: 'bQZPk',
   pluginElem: '1600000000000x100000000000000003-AAC',
   apiCallType: 'apiconnector2-1700000000000x100000000000000001.1700000000001x100000000000000002',
   date: '2026-11-18T16:52:44.702Z',
-  color: 'rgba(2,2,2,1)',
-  hex: '#E2E629',
-  url: 'https://verify.twilio.com/v2/Services/[verify-service-sid]/Verifications',
+  color: 'rgba(10,20,30,1)',
+  hex: '#3366CC',
+  url: 'https://verify.twilio.com/v2/Services/[svc-id]/Verifications',
   version: '1.8.2',
   style: '100px 200px 300px',
   priceId: 'prod_FAKE00TESTprod',
-  fieldName: 'phone_2fa_token_text',
+  fieldName: 'phone_code_text',
   tokenType: 'Bearer',
   authType: 'private_key_in_header',
   exampleMail: 'noreply@example.com',
@@ -81,11 +81,11 @@ function fixture() {
         stripe_pk: SECRETS.stripePub,
         authentication: { email: { use_email: true } },
         apiconnector2: {
-        stripe: { calls: { s1: { name: 'Customer - Get', url: 'https://api.stripe.com/v1/customers',
-          types: JSON.stringify({ 't1': { caption: 'Customer - Get', fields: { _api_c2_id: { ret_btype: 'text', sample_value: SECRETS.custId, path: ['id'] }, _api_c2_name: { ret_btype: 'text', sample_value: SECRETS.sampleName, path: ['name'] }, _api_c2_n: { ret_btype: 'number', sample_value: 7999, path: ['n'] } } } }),
+        stripe: { calls: { s1: { name: 'Get customer', url: 'https://api.stripe.com/v1/customers',
+          types: JSON.stringify({ 't1': { caption: 'Get customer', fields: { _api_c2_id: { ret_btype: 'text', sample_value: SECRETS.custId, path: ['id'] }, _api_c2_name: { ret_btype: 'text', sample_value: SECRETS.sampleName, path: ['name'] }, _api_c2_n: { ret_btype: 'number', sample_value: 42, path: ['n'] } } } }),
           params: { q1: { key: 'subscription', value: SECRETS.subId, private: false } } } } },
         },
-        dbconnector_queries: JSON.stringify({ q1: { name: 'create_database', text: "INSERT INTO `contacts` VALUES (11,'"+SECRETS.sqlName+"','123','1234467890','x@y.com','English',7),(12,'Other','1','2','a@b.co','en',7);\nINSERT INTO devices (name, user_id) VALUES (?, ?);" }, q2: { name: 'user-login', text: 'SELECT * FROM users WHERE username = ? AND password = ? LIMIT 1;' } }),
+        dbconnector_queries: JSON.stringify({ q1: { name: 'seed_data', text: "INSERT INTO `people` VALUES (1,'"+SECRETS.sqlName+"','x@y.com','fr'),(2,'Other','a@b.co','de');\nINSERT INTO notes (title, owner) VALUES (?, ?);" }, q2: { name: 'login-check', text: 'SELECT id FROM accounts WHERE email = ? AND pass_hash = ?;' } }),
         '1600000000001x100000000000000006_header_AHJ': 'Xq7Lp2Wm9Z',
         '1700000000002x100000000000000004_appid': 'api'
       },
@@ -100,11 +100,11 @@ function fixture() {
       },
       google: { private_key: SECRETS.pem, client_email: 'svc@project.iam.gserviceaccount.com' },
       secure: {
-        username: 'svc', password: 'svcpass1', cRb: KEEP.thingId, cSn: '1', oauth_login_page: 'bTHMl',
+        username: 'svc', password: 'svcpass1', cXa: KEEP.thingId, cXb: '1', oauth_login_page: 'bQXRm',
         '1400000000000x100000000000000007_ADt': SECRETS.twilioSid,
         '1400000000000x100000000000000007_ADu': SECRETS.pluginTok,
         '1400000000000x100000000000000007_AEM': SECRETS.pluginSec,
-        apiconnector2: { bTHLv: { username: 'api', password: 'mgpass', calls: { c1: { url_params: { p1: { key: 'account-ssid', value: SECRETS.twilioSid } } } } } },
+        apiconnector2: { bQXRv: { username: 'api', password: 'mgpass', calls: { c1: { url_params: { p1: { key: 'account-sid-param', value: SECRETS.twilioSid } } } } } },
         general_keys: { has_valid_algolia: 'False' }
       },
     },
@@ -118,10 +118,10 @@ function fixture() {
             { key: 'Authorization', value: 'Basic ' + SECRETS.basic, private: true },
             { key: 'Content-Type', value: 'application/x-www-form-urlencoded', private: false }
           ],
-          shared_parameters: [{ key: 'verify-service-sid', value: SECRETS.verifySid, private: true }],
+          shared_parameters: [{ key: 'svc-id', value: SECRETS.verifySid, private: true }],
           calls: [{
             id: '1700000000001x100000000000000002',
-            name: 'Verify - Start',
+            name: 'Send code',
             url: KEEP.url,
             method: 'POST',
             parameters: [
@@ -135,7 +135,7 @@ function fixture() {
         '1700000000003x100000000000000005': {
           name: 'Email provider',
           shared_headers: [{ key: 'Authorization', value: 'Klaviyo-API-Key ' + SECRETS.klaviyo, private: true }],
-          calls: [{ name: 'Update Profile', url: 'https://a.klaviyo.com/api/profiles/?api_key=' + SECRETS.klaviyo + '&v=1' }]
+          calls: [{ name: 'Update contact', url: 'https://a.klaviyo.com/api/profiles/?api_key=' + SECRETS.klaviyo + '&v=1' }]
         },
         'openai': { shared_headers: [{ key: 'Authorization', value: 'Bearer ' + SECRETS.openai, private: true }] }
       }
@@ -148,13 +148,13 @@ function fixture() {
           contact: { properties: { text: 'Call us at ' + SECRETS.phone2 + ' or ' + SECRETS.email2, placeholder: KEEP.exampleMail } },
           jwtdemo: { properties: { default: SECRETS.jwt } }
         },
-        workflows: { 'bTInH0': { properties: { element_id: 'bTKBy' }, type: 'ButtonClicked', id: 'bTKCP',
+        workflows: { 'bQRsT0': { properties: { element_id: 'bQKBy' }, type: 'ButtonClicked', id: 'bQKCP',
           actions: [{ type: KEEP.apiCallType, properties: { 'Code': '123456', server_ip: SECRETS.ip } }] } }
       }
     },
     user_types: {
-      user: { fields: { [KEEP.fieldName]: { type: 'text', display: 'phone 2fa token' }, 'stripe-ID-price': { type: 'text', default_value: KEEP.priceId } } },
-      user_details: { fields: { 'stripe-ID-subscription': { type: 'text', sample: KEEP.priceId } } }
+      user: { fields: { [KEEP.fieldName]: { type: 'text', display: 'phone code' }, 'price_field': { type: 'text', default_value: KEEP.priceId } } },
+      user_details: { fields: { 'subscription_field': { type: 'text', sample: KEEP.priceId } } }
     },
     meta: { exported: KEEP.date, version: KEEP.version, aws_access_key_id: SECRETS.aws },
     comments: { user: { type: 'CustomType', content: SECRETS.comment, comments: { r1: { type: 'PrivacyRole', content: 'another note', parent: 'user' } } } }
@@ -354,12 +354,12 @@ test('settings.secure: everything is redacted, including plugin keys under opaqu
   assert.ok(/^\[REDACTED:secure-settings:/.test(sec['1400000000000x100000000000000007_ADu']));
   assert.ok(/^\[REDACTED:secure-settings:/.test(sec['1400000000000x100000000000000007_AEM']));
   assert.ok(/^\[REDACTED:/.test(sec.password));
-  assert.ok(/^\[REDACTED:/.test(sec.apiconnector2.bTHLv.password));
-  assert.ok(/^\[REDACTED:/.test(sec.apiconnector2.bTHLv.calls.c1.url_params.p1.value));
-  assert.strictEqual(sec.apiconnector2.bTHLv.calls.c1.url_params.p1.key, 'account-ssid'); // labels kept
-  assert.strictEqual(sec.cRb, KEEP.thingId);
-  assert.strictEqual(sec.cSn, '1');
-  assert.strictEqual(sec.oauth_login_page, 'bTHMl');
+  assert.ok(/^\[REDACTED:/.test(sec.apiconnector2.bQXRv.password));
+  assert.ok(/^\[REDACTED:/.test(sec.apiconnector2.bQXRv.calls.c1.url_params.p1.value));
+  assert.strictEqual(sec.apiconnector2.bQXRv.calls.c1.url_params.p1.key, 'account-sid-param'); // labels kept
+  assert.strictEqual(sec.cXa, KEEP.thingId);
+  assert.strictEqual(sec.cXb, '1');
+  assert.strictEqual(sec.oauth_login_page, 'bQXRm');
   assert.strictEqual(sec.general_keys.has_valid_algolia, 'False');
 });
 
@@ -374,7 +374,7 @@ test('API Connector sample values are replaced with "string value", numbers kept
   const t = JSON.parse(call.types).t1.fields;
   assert.strictEqual(t._api_c2_id.sample_value, 'string value');
   assert.strictEqual(t._api_c2_name.sample_value, 'string value');
-  assert.strictEqual(t._api_c2_n.sample_value, 7999);
+  assert.strictEqual(t._api_c2_n.sample_value, 42);
   assert.deepStrictEqual(t._api_c2_id.path, ['id']);
   assert.ok(res.counts['sample-value'] >= 2);
 });
@@ -389,9 +389,9 @@ test('Stripe customer-level ids are redacted, catalog ids kept', () => {
 
 test('SQL literal rows are removed, parameterised statements untouched', () => {
   const q = JSON.parse(res.data.settings.client_safe.dbconnector_queries);
-  assert.ok(q.q1.text.includes('INSERT INTO `contacts` VALUES (/* rows removed by sanitizer */);'));
-  assert.ok(q.q1.text.includes('INSERT INTO devices (name, user_id) VALUES (?, ?);'));
-  assert.strictEqual(q.q2.text, 'SELECT * FROM users WHERE username = ? AND password = ? LIMIT 1;');
+  assert.ok(q.q1.text.includes('INSERT INTO `people` VALUES (/* rows removed by sanitizer */);'));
+  assert.ok(q.q1.text.includes('INSERT INTO notes (title, owner) VALUES (?, ?);'));
+  assert.strictEqual(q.q2.text, 'SELECT id FROM accounts WHERE email = ? AND pass_hash = ?;');
 });
 
 test('connection-string password rule skips SQL parameter markers', () => {
@@ -409,10 +409,10 @@ test('editor comments are blanked', () => {
 });
 
 test('short passwords are not mistaken for Bubble editor ids', () => {
-  const r = S.sanitize(JSON.stringify({ password: 'hunter2', token: 'abcdefg', id: 'bTGYf', id2: 'bTInH0', id3: 'AAa' }));
+  const r = S.sanitize(JSON.stringify({ password: 'hunter2', token: 'abcdefg', id: 'bQZPk', id2: 'bQRsT0', id3: 'AAa' }));
   assert.ok(/^\[REDACTED:/.test(r.data.password));
   assert.ok(/^\[REDACTED:/.test(r.data.token));
-  assert.strictEqual(r.data.id, 'bTGYf'); assert.strictEqual(r.data.id2, 'bTInH0'); assert.strictEqual(r.data.id3, 'AAa');
+  assert.strictEqual(r.data.id, 'bQZPk'); assert.strictEqual(r.data.id2, 'bQRsT0'); assert.strictEqual(r.data.id3, 'AAa');
 });
 
 test('structure rules can be switched off', () => {
@@ -457,10 +457,10 @@ test('SQL query param test values are replaced (JSON and Python-repr forms)', ()
 });
 
 test('tracking ids in header scripts are redacted', () => {
-  const inp = { settings: { client_safe: { custom_header_meta_tag_content: "<meta name=\"site-verification\" content=\"abcdefgh0123verify\"><script>gtag('config','G-ABCD1234EF');</script><script>x('GTM-ABCD1234')</script><script src='https://utt.impactcdn.com/A1234567-0000-1111-2222-333333333333f.js'></script><script>s.src='https://123456.t.hyros.com/v1/lst/universal-script?ph=0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef&tag=!clicked'</script><script>fbq('init', '1234567890123456');</script><script>(window, document, \"clarity\", \"script\", \"abcd1234ef\");</script>" } } };
+  const inp = { settings: { client_safe: { custom_header_meta_tag_content: "<meta name=\"site-verification\" content=\"abcdefgh0123verify\"><script>gtag('config','G-ABCD1234EF');</script><script>x('GTM-ABCD1234')</script><script>s.src='https://pixel.example.net/track.js?pixel_id=0123456789abcdef0123456789abcdef&tag=!clicked'</script><script>fbq('init', '1234567890123456');</script><script>(window, document, \"clarity\", \"script\", \"abcd1234ef\");</script>" } } };
   const r = S.sanitize(JSON.stringify(inp));
   const h = r.data.settings.client_safe.custom_header_meta_tag_content;
-  for (const t of ['G-ABCD1234EF', 'GTM-ABCD1234', 'A1234567-0000', '0123456789abcdef0123456789abcdef0123', '1234567890123456', 'abcd1234ef', 'abcdefgh0123']) assert.ok(!h.includes(t), 'left: ' + t);
+  for (const t of ['G-ABCD1234EF', 'GTM-ABCD1234', '0123456789abcdef0123456789abcdef', '1234567890123456', 'abcd1234ef', 'abcdefgh0123']) assert.ok(!h.includes(t), 'left: ' + t);
   assert.ok(h.includes("fbq('init', '[REDACTED:tracking-id:"));
   assert.ok(h.includes('&tag=!clicked'));
   const r2 = S.sanitize(JSON.stringify({ t: 'G-SHOCK watch, AW-2 model' }));
@@ -474,6 +474,43 @@ test('custom words are redacted everywhere, whole-word, case-insensitive', () =>
   assert.strictEqual(r.data.a.split(' ')[0], r.data.b.split(' ')[0]); // same placeholder regardless of case
   assert.strictEqual(r.data.c, 'Alicante is a city');
   assert.ok(/^\[REDACTED:custom-word:/.test(r.data.d));
+});
+
+test('bare-digit phone numbers, authenticator secrets, Stripe links and pixel ids are redacted', () => {
+  const inp = {
+    from: '15145550142', from_uk: '447700900123', ts: '1700000000123', last_change: '10000000042', small: '12345678',
+    totp: J('JBSWY3DPEHPK3PXP', 'JBSWY3DPEHPK3PXP'), word: 'CONFIRMATIONCODES',
+    link: 'https://buy.stripe.com/' + J('test_', 'aBc123dEf456gHi789'), bare: J('test_', 'aBc123dEf456gHi789jK'), portal: 'https://billing.stripe.com/p/login/' + J('test_', 'zz11yy22xx33ww'),
+    px: '<img src="https://www.facebook.com/tr?id=' + J('123456', '789012345') + '&ev=PageView">'
+  };
+  const r = S.sanitize(JSON.stringify(inp)).data;
+  assert.ok(/^\+1000000\d{4}$/.test(r.from), r.from);
+  assert.ok(/^\+1000000\d{4}$/.test(r.from_uk), r.from_uk);
+  assert.strictEqual(r.ts, '1700000000123');
+  assert.strictEqual(r.last_change, '10000000042');
+  assert.strictEqual(r.small, '12345678');
+  assert.ok(/^\[REDACTED:totp-secret:/.test(r.totp));
+  assert.strictEqual(r.word, 'CONFIRMATIONCODES');
+  assert.ok(/^https:\/\/buy\.stripe\.com\/\[REDACTED:stripe-link:/.test(r.link));
+  assert.ok(/^\[REDACTED:stripe-link:/.test(r.bare));
+  assert.ok(/\/p\/login\/\[REDACTED:stripe-link:/.test(r.portal));
+  assert.ok(/tr\?id=\[REDACTED:tracking-id:[0-9a-f]+\]&ev=PageView/.test(r.px), r.px);
+});
+
+test('SQL query params given as an array of objects are replaced too', () => {
+  const inp = { settings: { client_safe: { dbconnector_queries: JSON.stringify({
+    q1: { name: 'x', text: 'SELECT 1', params: [{ name: 'contact_name', type: 'text', test_value: 'Alice Example' }, { name: 'n', type: 'number', test_value: '7' }] }
+  }) } } };
+  const q = JSON.parse(S.sanitize(JSON.stringify(inp)).data.settings.client_safe.dbconnector_queries);
+  assert.strictEqual(q.q1.params[0].test_value, 'string value');
+  assert.strictEqual(q.q1.params[1].test_value, '7');
+});
+
+test('settings.secure: short credential values are redacted even when they look trivial', () => {
+  const r = S.sanitize(JSON.stringify({ settings: { secure: { username: 'svc', flag: 'yes', apiconnector2: { c: { calls: { k: { body_params: { p: { key: 'campaign', value: '12345' } } } } } } } } }));
+  const sec = r.data.settings.secure;
+  assert.ok(/^\[REDACTED:secure-settings:/.test(sec.username));
+  assert.strictEqual(sec.flag, 'yes');
 });
 
 console.log('\n' + passed + ' passed, ' + failed + ' failed');

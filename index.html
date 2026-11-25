@@ -114,7 +114,7 @@ footer{color:var(--muted);font-size:.8rem;margin-top:30px}
       <summary>What it does and does not do</summary>
       <ul style="font-size:.88rem;color:var(--muted)">
         <li>Only string values are rewritten. Keys, numbers, booleans, nulls, ordering and structure stay identical, so the file keeps its shape and internal references.</li>
-        <li>Bubble ids (<code>1700000000000x100000000000000001</code>, <code>bTGYf</code>, plugin element ids, API call ids), dates and colors are protected and never redacted.</li>
+        <li>Bubble ids (<code>1700000000000x100000000000000001</code>, <code>bQZPk</code>, plugin element ids, API call ids), dates and colors are protected and never redacted.</li>
         <li>Each secret is replaced by <code>[REDACTED:rule:xxxxxxxxxx]</code>. The suffix is a salted, non-reversible hash so the same secret maps to the same placeholder within one run and cross-references still line up. The salt is random per run, so placeholders can't be compared between runs or files.</li>
         <li>A second pass runs over the output and must find nothing. If it does, the result is flagged and you should not publish the file.</li>
         <li>It cannot know your business: names of people inside text, addresses, internal URLs or anything that is secret only to you will not be detected. Read the review list and skim the output before publishing.</li>
@@ -145,7 +145,7 @@ footer{color:var(--muted);font-size:.8rem;margin-top:30px}
       <label><input type="checkbox" data-opt="sqlRows" checked><div>SQL literal rows<small><code>INSERT … VALUES (…)</code> data in SQL Connector queries</small></div></label>
       <label><input type="checkbox" data-opt="comments" checked><div>Editor comments<small>Notes on elements/types often name people</small></div></label>
       <label><input type="checkbox" data-opt="paramValues" checked><div>API Connector test values<small>Values typed into non-private params when initializing (phones, customer ids)</small></div></label>
-      <label><input type="checkbox" data-opt="trackingIds" checked><div>Analytics / pixel ids<small>GTM, GA4, Meta pixel, Clarity, Impact, Hyros in header scripts</small></div></label>
+      <label><input type="checkbox" data-opt="trackingIds" checked><div>Analytics / pixel ids<small>GTM, GA4, Meta pixel, Clarity in header scripts</small></div></label>
       <label><input type="checkbox" data-opt="entropyScan" checked><div>Entropy scan (review list)<small>Lists random-looking strings the rules didn't catch</small></div></label>
       <label><input type="checkbox" data-opt="redactEntropy"><div>…and redact those too<small>Aggressive. May hit non-secret values; check the report</small></div></label>
     </div>
